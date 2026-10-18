@@ -7,6 +7,7 @@ from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
+from mcp.server.transport_security import TransportSecuritySettings
 
 # --- 1. Configure your exam email ---
 NORMALIZED_EMAIL = "24f1000557@ds.study.iitm.ac.in"  # trimmed and lowercased
@@ -59,7 +60,14 @@ async def health(request: Request):
 
 
 # --- 7. Build the final ASGI application ---
-mcp_app = mcp.streamable_http_app()
+mcp_app = mcp.streamable_http_app(
+    transport_security=TransportSecuritySettings(
+        allowed_hosts=[
+            "tds-14.onrender.com",
+            "tds-14.onrender.com:*",
+        ],
+    )
+)
 
 app = Starlette(
     # 🔑 THE FIX: Run the MCP app's lifespan so its session manager
