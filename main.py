@@ -1,12 +1,15 @@
 import os
 import hashlib
 from mcp.server.fastmcp import FastMCP, Context
+from starlette.applications import Starlette
+from starlette.routing import Mount
+import uvicorn
 
-# Render assigns a random port, so we must use it
-port = int(os.environ.get("PORT", 8000))
+# Initialize FastMCP
+mcp = FastMCP("TDS-Q14-Server")
 
-# Initialize the MCP server
-mcp = FastMCP("TDS-Q14-Server", host="0.0.0.0", port=port)
+# Explicitly set the path for streamable HTTP to be just "/mcp"
+mcp.settings.streamable_http_path = "/mcp"
 
 @mcp.tool()
 def solve_challenge(ctx: Context) -> str:
@@ -14,10 +17,10 @@ def solve_challenge(ctx: Context) -> str:
     Reads the X-Exam-Challenge header, hashes it with the email,
     and returns the first 16 hex characters.
     """
-    # 1. Access the underlying Starlette HTTP request from the MCP Context
+    # Access the underlying Starlette HTTP request from the MCP Context
     request = ctx.request_context.request
     
-    # 2. Extract the challenge from the headers
+    # Extract the challenge from the headers
     challenge = request.headers.get("X-Exam-Challenge", "")
     
     # Your normalized email
@@ -26,13 +29,21 @@ def solve_challenge(ctx: Context) -> str:
     if not challenge:
         return "Error: Missing X-Exam-Challenge header"
         
-    # 3. Compute SHA-256("${challenge}:${email}")
+    # Compute SHA-256("${challenge}:${email}")
     text_to_hash = f"{challenge}:{email}"
     hashed = hashlib.sha256(text_to_hash.encode('utf-8')).hexdigest()
     
-    # 4. Return the first 16 lowercase hex characters
+    # Return the first 16 lowercase hex characters
     return hashed[:16]
 
 if __name__ == "__main__":
-    # Run the server using the SSE (Server-Sent Events) transport
-    mcp.run(transport="streamable-http")
+    port = int(os.environ.get("PORT", 8000))
+    
+    # Create the Starlette app and mount the MCP streamable HTTP app
+    # This guarantees the route is available at /mcp
+    app = Starlette(routes=[
+        Mount("/", app=mcp.streamable_http_app())
+    ])
+    
+    # Run the app with Uvicorn on the port Render assigns
+    uvicorn.run(app, host="0.0.0.0", port=port)
