@@ -35,4 +35,4 @@ def solve_challenge(ctx: Context) -> str:
 
 if __name__ == "__main__":
     # Run the server using the SSE (Server-Sent Events) transport
-    mcp.run(transport="sse")
+    mcp.run(transport="streamable-http")
